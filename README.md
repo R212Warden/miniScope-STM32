@@ -1,6 +1,7 @@
 # miniScope-stm32
 Miniature oscilloscope that runs on STM32
 The chip in question is STM32F103C6T6 with 32kb of flash.
+This is now reuploaded for 3rd time due to various user errors...
 
 # About
 
