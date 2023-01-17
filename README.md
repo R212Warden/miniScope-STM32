@@ -42,9 +42,3 @@ Power button does nothing.
 Inside the repo (after you clone) hit make. Your executable is in build folder and you can upload it your way.
 You need gcc-arm-none-eabi.
 
-
-
-
-
-
-

@@ -32,6 +32,11 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <stdint.h>  
+    
+
+    
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
@@ -59,14 +64,18 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define vbus_present_Port GPIOA
+#define vbus_present_Pin GPIO_PIN_4
 #define power_Pin GPIO_PIN_0
 #define power_GPIO_Port GPIOA
 #define power_EXTI_IRQn EXTI0_IRQn
@@ -76,6 +85,10 @@ void Error_Handler(void);
 #define move_down_GPIO_Port GPIOA
 #define move_up_Pin GPIO_PIN_3
 #define move_up_GPIO_Port GPIOA
+#define battery_sense_Pin GPIO_PIN_6
+#define battery_sense_GPIO_Port GPIOA
+#define sense_2v5_Pin GPIO_PIN_0
+#define sense_2v5_GPIO_Port GPIOB
 #define voltage_sense_Pin GPIO_PIN_1
 #define voltage_sense_GPIO_Port GPIOB
 #define FREQ_IN_Pin GPIO_PIN_8
