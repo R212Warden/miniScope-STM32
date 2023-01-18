@@ -77,7 +77,7 @@ int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t
 #define vbus_present_Port GPIOA
 #define vbus_present_Pin GPIO_PIN_4
 #define charge_enable_Port GPIOA
-#define charge_enable_Pin GPIO_PIN_10
+#define charge_enable_Pin GPIO_PIN_12
 #define power_Pin GPIO_PIN_0
 #define power_GPIO_Port GPIOA
 #define power_EXTI_IRQn EXTI0_IRQn

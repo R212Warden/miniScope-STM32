@@ -300,10 +300,29 @@ inline void user_main_code(void){
                     setADCchargingChannel = 0;
                 }else{
                     voltage_lpf -= voltage_lpf/16;
-                    voltage_lpf += voltage/16;
+                    voltage_lpf += voltage/16; 
                 }
+                
+                
                
-                //HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
+                if((charging_finished == 0 ) && (battery_perc < 95) && !HAL_GPIO_ReadPin(GPIOA, charge_enable_Pin) && !HAL_GPIO_ReadPin(GPIOA, vbus_present_Pin)){
+                    HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 1);   
+                    ST7735_FillRectangleFast(0, 60, 160,18, ST7735_BLACK);
+                }else if(battery_perc > 98){
+                    HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 0);  
+                    charging_finished = 1;
+                    ST7735_FillRectangleFast(0, 60, 160,18, ST7735_BLACK);
+                    ST7735_WriteString(30, 60, "Finished!", Font_11x18, ST7735_GREEN, ST7735_BLACK);
+                }
+                
+                if(HAL_GPIO_ReadPin(GPIOA, vbus_present_Pin)){
+                    HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 0);
+                    charging_finished = 0;
+                    ST7735_FillRectangleFast(0, 60, 160,18, ST7735_BLACK);
+                    ST7735_WriteString(25, 60, "Unplugged!", Font_11x18, ST7735_RED, ST7735_BLACK);
+                }
+                   
+                
                 
                 voltage_disp = voltage_lpf;
                 perc_disp = battery_perc;
@@ -405,6 +424,7 @@ void button_poll(void){
     if(btn_state[4]){   //charging
         if(HAL_GPIO_ReadPin(GPIOA, 1<<4)){
             btn_state[4] = 0; //charger unplugged
+            charging_finished = 0;
         }
     }else{ //normal button function, also debounce 
         
