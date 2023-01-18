@@ -25,6 +25,7 @@ volatile int32_t btn_debounce[5];
 volatile int32_t btn_state[5];
 const int32_t btn_tresh = 4;
 
+int32_t charging_finished = 0;
 int32_t scope_recording[420];
 int32_t counter, scope_ready;
 
@@ -111,17 +112,19 @@ inline void user_main_code(void){
     int32_t compare = 1;
     float freq = 1, capacitance = 1, capacitance_lpf = 10;
     int32_t freq_div = 1, capacitance_disp, capacitance_disp_prev;
+    int32_t perc_disp, perc_prev;
     
     int32_t timer_significant_change = 0, timer_overflows = 0;
     int32_t timer_previous, timer_tresh = 480, compare_lovval = 0;
     
     int32_t mode_selector = 0;
     float voltage=1, voltage_lpf=1;
+    float battery_perc;
     int32_t adcr = 0, voltage_disp, voltage_disp_prev, voltage_prev;
     int32_t timeDiv = 10;
     int32_t setScopeParams = 1;
-    int32_t setADCchargingChannel = 0;
-     int32_t setADCvoltageProbeChannel = 0;
+    int32_t setADCchargingChannel = 1;
+    int32_t setADCvoltageProbeChannel = 0;
 
     while (1)
     {        
@@ -183,26 +186,8 @@ inline void user_main_code(void){
             case 1: //voltage
                 ST7735_WriteString(30, 0, "MILIVOLTS", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
                 
-                if(!setADCvoltageProbeChannel){
-                    //ST7735_WriteString(30, 20, "stat1", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-                    
-                    if(hdma_adc1.State != 0){
-                        //ST7735_WriteString(30, 20, "STAT1", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-                        //int szazs =  HAL_DMA_GetState(&hdma_adc1);    
-                        //int szazs =  hdma_adc1.State;      
-                        //itoa(szazs, buffer);
-                        
-                        //ST7735_WriteString(30, 20, buffer, Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-                        //if(HAL_DMA_GetState(&hdma_adc1) != HAL_DMA_STATE_RESET){
-                            HAL_ADC_Stop_DMA(&hadc1);
-                        //}
-                    }
-
-                    HAL_Delay(100);
-                    MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);   
-                    setADCvoltageProbeChannel = 1;
-                }
                 //HAL_ADC_Start(&hadc1);
+               // int status = HAL_ADC_PollForConversion(&hadc1, 1000);
                 HAL_ADC_PollForConversion(&hadc1, 10);
                 adcr = HAL_ADC_GetValue(&hadc1);
                 
@@ -222,7 +207,7 @@ inline void user_main_code(void){
 
                     ST7735_FillRectangleFast(0, 30, 160,26, ST7735_BLACK);
                     //sprintf(buffer, "%d mV    ", voltage_disp);
-                    itoa(voltage_disp, buffer);
+                    itoa(adcr, buffer);
                     
                     int32_t middle = ((160 - 10*user_strlen(buffer))/2) - 8;
                     ST7735_WriteString(middle, 30, buffer, Font_16x26, ST7735_CYAN, ST7735_BLACK);
@@ -237,16 +222,6 @@ inline void user_main_code(void){
                 //sprintf(buffer, "%d  ", timeDiv);
                 ST7735_WriteString(0, 0, timedivs + 5*timeDiv, Font_11x18, ST7735_CYAN, ST7735_BLACK);
                 
-                if(!setADCvoltageProbeChannel){
-                    
-                    //HAL_ADC_DeInit(&hadc1);
-                    HAL_Delay(100);
-                    MX_ADC1_Init(DISABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);         
-                    HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
-                    __HAL_DMA_ENABLE_IT(&hdma_adc1, DMA_IT_TC);
-                    setScopeParams = 1;
-                    setADCvoltageProbeChannel = 1;
-                }
                 
                 if(setScopeParams){ 
                     __HAL_TIM_SET_AUTORELOAD(&htim2, autoreloads[timeDiv]);
@@ -313,86 +288,104 @@ inline void user_main_code(void){
             break;
             case 3: //charging
                 ST7735_WriteString(36, 0, "CHARGING", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-                
-                if(!setADCchargingChannel){
-                    HAL_ADC_Stop_DMA(&hadc1);
-                    //HAL_ADC_DeInit(&hadc1);
-                    HAL_Delay(100);
-                    /*int status = */ MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
-                    /*
-                    if(status){
-                        ST7735_WriteString(36, 0, "error", Font_11x18, ST7735_RED, ST7735_BLACK);
-                        while(1);
-                    }
-                    */                
-                    
-                    voltage_disp_prev = 0xffff;
-                    //setADCchargingChannel = 1;
-                }
-                
+                           
                 HAL_ADC_PollForConversion(&hadc1, 0);
                 adcr = HAL_ADC_GetValue(&hadc1);
                 
-                voltage = (float)adcr * ((3.3/4096.0)) * 1000;        
+                voltage = (float)adcr * ((3.3/4096.0)) * 1000 * 0.73 * 11;     //0.73 is angels share
+                battery_perc  = voltage_lpf * 0.083333 - 250;
                 
-                if(!setADCchargingChannel){
+                if(setADCchargingChannel){
                     voltage_lpf = voltage;
-                    
-                    setADCchargingChannel = 1;
+                    setADCchargingChannel = 0;
                 }else{
-                    voltage_lpf -= voltage_lpf/8;
-                    voltage_lpf += voltage/8;
+                    voltage_lpf -= voltage_lpf/16;
+                    voltage_lpf += voltage/16;
                 }
-                voltage_disp = voltage_lpf;
+               
+                //HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_12);
                 
-                if(voltage_disp != voltage_disp_prev){
+                voltage_disp = voltage_lpf;
+                perc_disp = battery_perc;
 
-                    ST7735_FillRectangleFast(0, 19, 160,18, ST7735_BLACK);
-                    itoa(voltage_disp, buffer);
+                        
+                if(voltage_disp != voltage_disp_prev){
+                    ST7735_FillRectangleFast(77, 19, 160 - 77,18, ST7735_BLACK);
                     
+                    itoa(voltage_disp, buffer);
                     ST7735_WriteString(0, 19, "Volts: ", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-                    ST7735_WriteString(77, 19, buffer, Font_11x18, ST7735_CYAN, ST7735_BLACK);
+                    ST7735_WriteString(77, 19, buffer, Font_11x18, ST7735_CYAN, ST7735_BLACK);  
                     
                     voltage_disp_prev = voltage_disp;
-                }       
+                }
+                if(perc_disp != perc_prev){
+                    ST7735_FillRectangleFast(66, 38, 160 - 66,18, ST7735_BLACK);
+                    
+                    itoa(perc_disp, buffer);
+                    ST7735_WriteString(0, 38, "Perc: ", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
+                    ST7735_WriteString(66, 38, buffer, Font_11x18, ST7735_CYAN, ST7735_BLACK);
+                    perc_prev = perc_disp;
+                }
+                HAL_Delay(300);
         }
         
 
         if(btn_state[0]){ //POWER
-
-
+            
                 btn_state[0] = 0;
         }
-        if(btn_state[4] && !setADCchargingChannel){ //charger plugged
+        if(btn_state[4] && setADCchargingChannel){ //charger plugged
             mode_selector = 3;
             ST7735_FillScreen(ST7735_BLACK);
+           
+            //HAL_ADC_Stop_DMA(&hadc1);
+            voltage_disp_prev = 0xffff;
+            MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
+            HAL_ADC_Start(&hadc1);
             
-            
-            btn_state[4] = 0;
-        }else{
-            setADCchargingChannel = 0;
-            
-            if(btn_state[1]){ //MODE
-                mode_selector++;
-                if(mode_selector > 2) mode_selector = 0;
-                ST7735_FillScreen(ST7735_BLACK);
-                
-                setADCvoltageProbeChannel = 0;
-                btn_state[1] = 0;
-            }
-            if(btn_state[2]){ //MINUS
-                timeDiv--;
-                if(timeDiv < TIMESCALE_MIN) timeDiv = TIMESCALE_MIN;
-                setScopeParams++;
-                btn_state[2] = 0;
-            }
-            if(btn_state[3]){ //PLUS
-                timeDiv++;
-                if(timeDiv>TIMESCALE) timeDiv = TIMESCALE;
-                setScopeParams++;
-                btn_state[3] = 0;
-            }
         }
+        if(btn_state[1]){ //MODE
+            mode_selector++;
+            setADCchargingChannel = 1;
+            if(mode_selector > 2) mode_selector = 0;
+            ST7735_FillScreen(ST7735_BLACK);
+
+            switch (mode_selector){
+            case 0: //capacitance
+            case 1: //voltage
+                if(hdma_adc1.State != 0){
+                    HAL_ADC_Stop_DMA(&hadc1);
+                }
+            //there is no break statement on purpose
+            case 2: //scope
+                MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);  
+                HAL_ADC_Start(&hadc1);
+            break;
+            /*
+            case 3: //charging
+                if(hdma_adc1.State != 0){
+                    HAL_ADC_Stop_DMA(&hadc1);
+                }
+                MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);  
+                HAL_ADC_Start(&hadc1);
+             */
+            }
+            setADCvoltageProbeChannel = 0;
+            btn_state[1] = 0;
+        }
+        if(btn_state[2]){ //MINUS
+            timeDiv--;
+            if(timeDiv < TIMESCALE_MIN) timeDiv = TIMESCALE_MIN;
+            setScopeParams++;
+            btn_state[2] = 0;
+        }
+        if(btn_state[3]){ //PLUS
+            timeDiv++;
+            if(timeDiv>TIMESCALE) timeDiv = TIMESCALE;
+            setScopeParams++;
+            btn_state[3] = 0;
+        }
+        
         HAL_Delay(200);
     }
     
@@ -409,18 +402,25 @@ void btn_power_handler(void){
 }
 
 void button_poll(void){
-    for(int32_t i = 0; i < 5; i++){
-        if((HAL_GPIO_ReadPin(GPIOA, 1<<i)) == 0){  //read each button and debounce
-            btn_debounce[i]++;
-        }else{
-            btn_debounce[i] = 0;
+    if(btn_state[4]){   //charging
+        if(HAL_GPIO_ReadPin(GPIOA, 1<<4)){
+            btn_state[4] = 0; //charger unplugged
         }
-    }
-    
-    for(int32_t i = 0; i < 5; i++){ //check if press exceeded treshold value
-        if(btn_debounce[i] > btn_tresh){
-            btn_state[i]++;
-            btn_debounce[i] = 0;
+    }else{ //normal button function, also debounce 
+        
+        for(int32_t i = 0; i < 5; i++){
+            if((HAL_GPIO_ReadPin(GPIOA, 1<<i)) == 0){  //read each button and debounce
+                btn_debounce[i]++;
+            }else{
+                btn_debounce[i] = 0;
+            }
+        }
+
+        for(int32_t i = 0; i < 5; i++){ //check if press exceeded treshold value
+            if(btn_debounce[i] > btn_tresh){
+                btn_state[i]++;
+                btn_debounce[i] = 0;
+            }
         }
     }
 }

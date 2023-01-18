@@ -109,7 +109,7 @@ int main(void)
   //MX_ADC1_Init();
   MX_SPI1_Init();
   MX_TIM1_Init();
-  MX_USART1_UART_Init();
+  //MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
     /* USER CODE BEGIN 2 */
@@ -125,6 +125,8 @@ int main(void)
     //HAL_ADC_Start(&hadc1);
     HAL_TIM_Base_Start(&htim2);
     //HAL_TIM_OC_Start(&htim2, TIM_CHANNEL_2);
+    
+    //
     
     HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1);
@@ -560,7 +562,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
+  
+  
+  //GPIO_InitStruct.Pin = charge_enable_Pin;
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
