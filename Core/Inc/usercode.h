@@ -22,18 +22,22 @@
 extern "C" {
 #endif
 
-int utoa(uint32_t val, char* buf);
-int itoa(int val, char* buf);
-void button_poll(void);
-void btn_power_handler(void);
-int user_strlen(char *str);
-void readScope(void);
-int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time);
-void user_main_code(void);
-
-int32_t scope_recording[420];
-uint32_t overflows;
-int32_t scope_ready;
+    int utoa(uint32_t val, char* buf);
+    int itoa(int val, char* buf);
+    void button_poll(void);
+    void btn_power_handler(void);
+    int user_strlen(char *str);
+    void readScope(void);
+    int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time);
+    void user_main_code(void);
+    void getSupplyVoltage(void);
+    
+    int32_t scope_recording[420];
+    uint32_t overflows;
+    int32_t scope_ready;
+    
+    int32_t adc_voltage_raw;
+    float adc_voltage;
 
 #ifdef __cplusplus
 }

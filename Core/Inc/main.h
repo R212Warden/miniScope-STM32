@@ -36,7 +36,7 @@ extern "C" {
 #include <stdint.h>  
     
 
-    
+ADC_ChannelConfTypeDef adc_sConfig;
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
@@ -47,6 +47,9 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
+
+int32_t getSupplyVoltageCounter;
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
