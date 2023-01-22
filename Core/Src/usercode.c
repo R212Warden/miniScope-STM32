@@ -20,6 +20,7 @@
 #include "../st7735/fonts.h"
 #include "usercode.h"
 #include "main.h"
+#include "cmsis_os.h"
 
 
 volatile int32_t btn_debounce[5];
@@ -105,9 +106,10 @@ const int32_t autoreloads[TIMESCALE] = {
 	50000
 };
 
-inline void user_main_code(void)
+void mainTaskFunction(void const * argument)
 {
-
+	/* USER CODE BEGIN 5 */
+	/* Infinite loop */
 	char buffer[16];
 	int32_t compare = 1;
 	float freq = 1, capacitance = 1, capacitance_lpf = 10;
@@ -127,8 +129,9 @@ inline void user_main_code(void)
 	int32_t setADCvoltageProbeChannel = 0;
 	
 	getSupplyVoltageCounter = 0xFFFF; //trigger the calibration immediately
-
-	while (1) {
+	
+	for (;;) {
+		
 		compare = __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1);
 		if (compare < 100) compare = 0;
 		freq = ((16000000 / freq_div) / (float) compare);
@@ -305,16 +308,17 @@ inline void user_main_code(void)
 			}
 
 
-
-			if ((charging_finished == 0) && (battery_perc < 95) && !HAL_GPIO_ReadPin(GPIOA, charge_enable_Pin) && !HAL_GPIO_ReadPin(GPIOA, vbus_present_Pin)) {
+			int charge_enable_Pin = 1<<17;
+			
+			if ((charging_finished == 0) && (battery_perc < 95) && !HAL_GPIO_ReadPin(GPIOA, charge_enable_Pin) && !HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
 				HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 1);
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
-			} else if ((battery_perc > 98) & !HAL_GPIO_ReadPin(GPIOA, vbus_present_Pin)) {
+			} else if ((battery_perc > 98) & !HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
 				HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 0);
 				charging_finished = 1;
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
 				ST7735_WriteString(30, 60, "Finished!", Font_11x18, ST7735_GREEN, ST7735_BLACK);
-			}else if (HAL_GPIO_ReadPin(GPIOA, vbus_present_Pin)) {
+			}else if (HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
 				HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 0);
 				charging_finished = 0;
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
@@ -345,7 +349,7 @@ inline void user_main_code(void)
 				ST7735_WriteString(66, 38, buffer, Font_11x18, ST7735_CYAN, ST7735_BLACK);
 				perc_prev = perc_disp;
 			}
-			HAL_Delay(300);
+			osDelay(300);
 		}
 
 
@@ -359,7 +363,7 @@ inline void user_main_code(void)
 
 			//HAL_ADC_Stop_DMA(&hadc1);
 			voltage_disp_prev = 0xffff;
-			MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
+			//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
 			HAL_ADC_Start(&hadc1);
 
 		}
@@ -375,11 +379,11 @@ inline void user_main_code(void)
 				if (hdma_adc1.State != 0) {
 					HAL_ADC_Stop_DMA(&hadc1);
 				}
-				MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
+				//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
 				//there is no break statement on purpose
 				break;
 			case 2: //scope
-				MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);
+				//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);
 				HAL_ADC_Start(&hadc1);
 				break;
 				/*
@@ -407,10 +411,81 @@ inline void user_main_code(void)
 			btn_state[3] = 0;
 		}
 
-		HAL_Delay(200);
+		osDelay(200);
 	}
-
+	/* USER CODE END 5 */
 }
+
+
+void adcCalibratorFunction(void const * argument)
+{
+	while (1) {
+		FunctionalState continuousmode;
+		uint32_t samplingtime, trigger, channel, sum = 0;
+		continuousmode = hadc1.Init.ContinuousConvMode;
+		trigger = hadc1.Init.ExternalTrigConv;
+		channel = adc_sConfig.Channel;
+		samplingtime = adc_sConfig.SamplingTime;
+
+		//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_41CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
+		HAL_ADC_Start(&hadc1);
+
+		for(int i = 0; i < 192; i++){
+			if(i>63)
+				sum += HAL_ADC_GetValue(&hadc1);
+			else
+				sum = 0;
+		}
+
+		//adc_voltage_raw = sum/8;
+		adc_voltage = (4096*1.2*128.0)/(float)sum;
+
+		//MX_ADC1_Init(continuousmode, samplingtime, trigger, channel);
+		HAL_ADC_Start(&hadc1);
+
+		osDelay(1000);
+	}
+}
+
+void buttonHandlerFunction(void const * argument)
+{
+	while (1) {
+		if (btn_state[4]) { //charging
+			if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15)) {
+				btn_state[4] = 0; //charger unplugged
+				charging_finished = 0;
+			}
+			HAL_ADC_Start(&hadc1);
+
+		} else { //normal button function, also debounce 
+
+			for (int32_t i = 0; i < 5; i++) {
+				if ((HAL_GPIO_ReadPin(GPIOA, 1 << i)) == 0) { //read each button and debounce
+					btn_debounce[i]++;
+				} else {
+					btn_debounce[i] = 0;
+				}
+			}
+
+			for (int32_t i = 0; i < 4; i++) { //check if press exceeded treshold value
+				if (btn_debounce[i] > btn_tresh) {
+					btn_state[i]++;
+					btn_debounce[i] = 0;
+				}
+			}
+		}
+		osDelay(50);
+	}
+}
+
+void batteryMonitorFunction(void const * argument)
+{
+	while (1) {
+
+		osDelay(100);
+	}
+}
+
 
 int user_strlen(char *str)
 {
@@ -426,56 +501,12 @@ void btn_power_handler(void)
 
 void getSupplyVoltage(void)
 {
-	FunctionalState continuousmode;
-	uint32_t samplingtime, trigger, channel, sum = 0;
-	continuousmode = hadc1.Init.ContinuousConvMode;
-	trigger = hadc1.Init.ExternalTrigConv;
-	channel = adc_sConfig.Channel;
-	samplingtime = adc_sConfig.SamplingTime;
 	
-	
-	MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_41CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
-	HAL_ADC_Start(&hadc1);
-	
-	for(int i = 0; i < 192; i++){
-		if(i>63)
-			sum += HAL_ADC_GetValue(&hadc1);
-		else
-			sum = 0;
-	}
-	
-	//adc_voltage_raw = sum/8;
-	adc_voltage = (4096*1.2*128.0)/(float)sum;
-	
-	MX_ADC1_Init(continuousmode, samplingtime, trigger, channel);
-	HAL_ADC_Start(&hadc1);
 }
 
 void button_poll(void)
 {
-	if (btn_state[4]) { //charging
-		if (HAL_GPIO_ReadPin(GPIOA, 1 << 4)) {
-			btn_state[4] = 0; //charger unplugged
-			charging_finished = 0;
-		}	HAL_ADC_Start(&hadc1);
 
-	} else { //normal button function, also debounce 
-
-		for (int32_t i = 0; i < 5; i++) {
-			if ((HAL_GPIO_ReadPin(GPIOA, 1 << i)) == 0) { //read each button and debounce
-				btn_debounce[i]++;
-			} else {
-				btn_debounce[i] = 0;
-			}
-		}
-
-		for (int32_t i = 0; i < 5; i++) { //check if press exceeded treshold value
-			if (btn_debounce[i] > btn_tresh) {
-				btn_state[i]++;
-				btn_debounce[i] = 0;
-			}
-		}
-	}
 }
 
 void readScope(void)

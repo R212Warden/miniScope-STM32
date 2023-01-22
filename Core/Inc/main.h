@@ -46,7 +46,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
-UART_HandleTypeDef huart1;
+//UART_HandleTypeDef huart1;
 
 int32_t getSupplyVoltageCounter;
 
@@ -73,45 +73,42 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
+//int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define vbus_present_Port GPIOA
-#define vbus_present_Pin GPIO_PIN_4
-#define charge_enable_Port GPIOA
-#define charge_enable_Pin GPIO_PIN_12
-#define power_Pin GPIO_PIN_0
-#define power_GPIO_Port GPIOA
-#define power_EXTI_IRQn EXTI0_IRQn
-#define MODE_Pin GPIO_PIN_1
-#define MODE_GPIO_Port GPIOA
-#define move_down_Pin GPIO_PIN_2
-#define move_down_GPIO_Port GPIOA
-#define move_up_Pin GPIO_PIN_3
-#define move_up_GPIO_Port GPIOA
-#define battery_sense_Pin GPIO_PIN_6
-#define battery_sense_GPIO_Port GPIOA
-#define sense_2v5_Pin GPIO_PIN_0
-#define sense_2v5_GPIO_Port GPIOB
-#define voltage_sense_Pin GPIO_PIN_1
-#define voltage_sense_GPIO_Port GPIOB
-#define FREQ_IN_Pin GPIO_PIN_8
-#define FREQ_IN_GPIO_Port GPIOA
-#define TX_Pin GPIO_PIN_9
-#define TX_GPIO_Port GPIOA
-#define RX_Pin GPIO_PIN_10
-#define RX_GPIO_Port GPIOA
-#define LCD_SCK_Pin GPIO_PIN_3
-#define LCD_SCK_GPIO_Port GPIOB
+#define btn_power_Pin GPIO_PIN_0
+#define btn_power_GPIO_Port GPIOA
+#define btn_mode_Pin GPIO_PIN_1
+#define btn_mode_GPIO_Port GPIOA
+#define btn_down_Pin GPIO_PIN_2
+#define btn_down_GPIO_Port GPIOA
+#define btn_up_Pin GPIO_PIN_3
+#define btn_up_GPIO_Port GPIOA
+#define in_plugged_Pin GPIO_PIN_4
+#define in_plugged_GPIO_Port GPIOA
+#define LCD_CLK_Pin GPIO_PIN_5
+#define LCD_CLK_GPIO_Port GPIOA
+#define in_adc_batteryVoltage_Pin GPIO_PIN_6
+#define in_adc_batteryVoltage_GPIO_Port GPIOA
+#define LCD_DAT_Pin GPIO_PIN_7
+#define LCD_DAT_GPIO_Port GPIOA
+#define in_chargeCurrent_Pin GPIO_PIN_0
+#define in_chargeCurrent_GPIO_Port GPIOB
+#define in_scope_Pin GPIO_PIN_1
+#define in_scope_GPIO_Port GPIOB
+#define LCD_DC_Pin GPIO_PIN_10
+#define LCD_DC_GPIO_Port GPIOB
+#define LCD_RES_Pin GPIO_PIN_11
+#define LCD_RES_GPIO_Port GPIOB
 #define LCD_CS_Pin GPIO_PIN_4
 #define LCD_CS_GPIO_Port GPIOB
-#define LCD_MOSI_Pin GPIO_PIN_5
-#define LCD_MOSI_GPIO_Port GPIOB
-#define LCD_DC_Pin GPIO_PIN_6
-#define LCD_DC_GPIO_Port GPIOB
-#define LCD_RES_Pin GPIO_PIN_7
-#define LCD_RES_GPIO_Port GPIOB
+#define in_counter_Pin GPIO_PIN_5
+#define in_counter_GPIO_Port GPIOB
+#define LCD_BL_Pin GPIO_PIN_6
+#define LCD_BL_GPIO_Port GPIOB
+#define out_charging_Pin GPIO_PIN_7
+#define out_charging_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

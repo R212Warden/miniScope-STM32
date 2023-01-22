@@ -29,8 +29,13 @@ extern "C" {
     int user_strlen(char *str);
     void readScope(void);
     int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time);
-    void user_main_code(void);
+    //void user_main_code(void);
     void getSupplyVoltage(void);
+    
+    void mainTaskFunction(void const * argument);
+    void buttonHandlerFunction(void const * argument);
+    void batteryMonitorFunction(void const * argument);
+    void adcCalibratorFunction(void const * argument);
     
     int32_t scope_recording[420];
     uint32_t overflows;
