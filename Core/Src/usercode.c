@@ -113,11 +113,11 @@ void mainTaskFunction(void const * argument)
 	char buffer[16];
 	int32_t compare = 1;
 	float freq = 1, capacitance = 1, capacitance_lpf = 10;
-	int32_t freq_div = 1, capacitance_disp, capacitance_disp_prev;
+	int32_t freq_div = 4, capacitance_disp, capacitance_disp_prev;
 	int32_t perc_disp, perc_prev;
 
 	int32_t timer_significant_change = 0, timer_overflows = 0;
-	int32_t timer_previous, timer_tresh = 480, compare_lovval = 0;
+	int32_t timer_previous, timer_tresh = 100, compare_lovval = 0;
 
 	int32_t mode_selector = 0;
 	float voltage = 1, voltage_lpf = 1;
@@ -132,12 +132,12 @@ void mainTaskFunction(void const * argument)
 	
 	for (;;) {
 		
-		compare = __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1);
+		compare = __HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_2);
 		if (compare < 100) compare = 0;
-		freq = ((16000000 / freq_div) / (float) compare);
+		freq = ((56000000 / freq_div) / (float) compare);
 		if (freq > 250000) freq = 500000;
 
-		capacitance = (1440000 / 2) / ((470 + 1700 * 2) * freq);
+		capacitance = (1440000 / 2) / ((470 + 1700) * freq);
 		capacitance_lpf -= capacitance_lpf / 32;
 		capacitance_lpf += capacitance / 32;
 
@@ -147,32 +147,33 @@ void mainTaskFunction(void const * argument)
 				capacitance_lpf = capacitance; //antilag
 			}
 			timer_previous = compare;
-
-			if (__HAL_TIM_GET_FLAG(&htim1, TIM_FLAG_UPDATE)) { //overflow detected
+			
+			
+			if (__HAL_TIM_GET_FLAG(&htim3, TIM_FLAG_UPDATE)) { //overflow detected
 				timer_overflows++;
 				compare_lovval = 0;
 			}
-			__HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_UPDATE);
+			__HAL_TIM_CLEAR_FLAG(&htim3, TIM_FLAG_UPDATE);
 
-			if (timer_overflows > 4) { //timer is overflowing, change psc
-				TIM1->PSC = 255;
-				freq_div = 256;
+			if (timer_overflows > 6) { //timer is overflowing, change psc
+				TIM3->PSC = 1023;
+				freq_div = 1024;
 				timer_overflows = 0;
 			}
 
-			if (compare < 40) {
+			if (compare < 100) {
 				compare_lovval++;
 			}
 
-			if (compare_lovval > 5) {//low value for a while crocodile
-				TIM1->PSC = 0;
-				freq_div = 1;
+			if (compare_lovval > 6) {//low value for a while crocodile
+				TIM3->PSC = 3;
+				freq_div = 4;
 				compare_lovval = 0;
 			}
 
 			capacitance_disp = (int32_t) (capacitance_lpf * 1000);
 
-			ST7735_WriteString(19, 0, "MICROFARADS", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
+			ST7735_WriteString(27, 0, "NANOFARADS", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
 
 			if (capacitance_disp != capacitance_disp_prev) {
 
@@ -363,7 +364,7 @@ void mainTaskFunction(void const * argument)
 
 			//HAL_ADC_Stop_DMA(&hadc1);
 			voltage_disp_prev = 0xffff;
-			//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
+			MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
 			HAL_ADC_Start(&hadc1);
 
 		}
@@ -375,15 +376,17 @@ void mainTaskFunction(void const * argument)
 
 			switch (mode_selector) {
 			case 0: //capacitance
+				capacitance_disp_prev = 0xffff;
 			case 1: //voltage
+				voltage_prev = 0xffff;
 				if (hdma_adc1.State != 0) {
 					HAL_ADC_Stop_DMA(&hadc1);
 				}
-				//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
-				//there is no break statement on purpose
+				MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
+				//there is no break statement on purpose (for now there is...)
 				break;
 			case 2: //scope
-				//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);
+				MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);
 				HAL_ADC_Start(&hadc1);
 				break;
 				/*
@@ -427,7 +430,7 @@ void adcCalibratorFunction(void const * argument)
 		channel = adc_sConfig.Channel;
 		samplingtime = adc_sConfig.SamplingTime;
 
-		//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_41CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
+		MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_41CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
 		HAL_ADC_Start(&hadc1);
 
 		for(int i = 0; i < 192; i++){
@@ -440,9 +443,9 @@ void adcCalibratorFunction(void const * argument)
 		//adc_voltage_raw = sum/8;
 		adc_voltage = (4096*1.2*128.0)/(float)sum;
 
-		//MX_ADC1_Init(continuousmode, samplingtime, trigger, channel);
+		MX_ADC1_myInit(continuousmode, samplingtime, trigger, channel);
 		HAL_ADC_Start(&hadc1);
-
+		
 		osDelay(1000);
 	}
 }
@@ -481,7 +484,7 @@ void buttonHandlerFunction(void const * argument)
 void batteryMonitorFunction(void const * argument)
 {
 	while (1) {
-
+		
 		osDelay(100);
 	}
 }
@@ -499,27 +502,6 @@ void btn_power_handler(void)
 	return;
 }
 
-void getSupplyVoltage(void)
-{
-	
-}
-
-void button_poll(void)
-{
-
-}
-
-void readScope(void)
-{
-	if (!scope_ready) {
-		scope_recording[counter] = HAL_ADC_GetValue(&hadc1);
-		counter++;
-		if (counter > 160) {
-			counter = 0;
-			scope_ready = 1;
-		}
-	}
-}
 
 int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time)
 { //len has to be greater than time

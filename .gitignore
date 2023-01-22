@@ -54,3 +54,5 @@ dkms.conf
 #user added:
 nbproject/
 build/
+.mxproject
+

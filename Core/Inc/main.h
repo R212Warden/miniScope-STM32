@@ -1,22 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.h
+ * @brief          : Header for main.c file.
+ *                   This file contains the common defines of the application.
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -34,21 +34,21 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <stdint.h>  
-    
 
-ADC_ChannelConfTypeDef adc_sConfig;
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
 
-SPI_HandleTypeDef hspi1;
+    ADC_ChannelConfTypeDef adc_sConfig;
+    ADC_HandleTypeDef hadc1;
+    DMA_HandleTypeDef hdma_adc1;
 
-TIM_HandleTypeDef htim1;
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
+    SPI_HandleTypeDef hspi1;
 
-//UART_HandleTypeDef huart1;
+    TIM_HandleTypeDef htim1;
+    TIM_HandleTypeDef htim2;
+    TIM_HandleTypeDef htim3;
 
-int32_t getSupplyVoltageCounter;
+    //UART_HandleTypeDef huart1;
+
+    int32_t getSupplyVoltageCounter;
 
 /* USER CODE END Includes */
 
@@ -73,7 +73,8 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-//int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
+    //int MX_ADC1_Init(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
+    int MX_ADC1_myInit(FunctionalState continuousmode, uint32_t samplingtime, uint32_t trigger, uint32_t channel);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

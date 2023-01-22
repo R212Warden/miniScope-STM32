@@ -55,9 +55,17 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 osThreadId mainTaskHandle;
+uint32_t mainTaskBuffer[ 256 ];
+osStaticThreadDef_t mainTaskControlBlock;
 osThreadId buttonHandlerTaHandle;
+uint32_t buttonHandlerTaBuffer[ 128 ];
+osStaticThreadDef_t buttonHandlerTaControlBlock;
 osThreadId adcCalibratorTaHandle;
+uint32_t adcCalibratorTaBuffer[ 128 ];
+osStaticThreadDef_t adcCalibratorTaControlBlock;
 osThreadId batteryMonitorHandle;
+uint32_t batteryMonitorBuffer[ 128 ];
+osStaticThreadDef_t batteryMonitorControlBlock;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -120,27 +128,38 @@ int main(void)
 	MX_TIM4_Init();
 	/* USER CODE BEGIN 2 */
 
-	//MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
 
 
-	while (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK);
+
+
 
 	ST7735_Init();
-	HAL_Delay(300);
 	ST7735_FillScreen(ST7735_BLACK);
-
+	HAL_Delay(300);
 	HAL_TIM_Base_Start(&htim1);
-	HAL_TIM_IC_Start(&htim1, TIM_CHANNEL_1);
-	// HAL_TIM_Base_Start_IT(&htim2);
-	HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start(&htim3);
+	HAL_TIM_Base_Start(&htim4);
+
+	HAL_TIM_IC_Start(&htim3, TIM_CHANNEL_2);
+	TIM3->PSC = 3;
+
+	//HAL_TIM_Base_Start_IT(&htim3);
 	//HAL_ADC_Start(&hadc1);
-	HAL_TIM_Base_Start(&htim2);
+	//HAL_TIM_Base_Start(&htim2);
 	//HAL_TIM_OC_Start(&htim2, TIM_CHANNEL_2);
 
 	//
 
-	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 1);
+
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+
+	MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
+	while (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK);
+	HAL_ADC_Start(&hadc1);
+
 
 
 	//user_main_code();
@@ -166,32 +185,33 @@ int main(void)
 
 	/* Create the thread(s) */
 	/* definition and creation of mainTask */
-	osThreadDef(mainTask, mainTaskFunction, osPriorityNormal, 0, 256);
+	osThreadStaticDef(mainTask, mainTaskFunction, osPriorityNormal, 0, 768, mainTaskBuffer, &mainTaskControlBlock);
 	mainTaskHandle = osThreadCreate(osThread(mainTask), NULL);
 
 	/* definition and creation of buttonHandlerTa */
-	osThreadDef(buttonHandlerTa, buttonHandlerFunction, osPriorityAboveNormal, 0, 256);
+	osThreadStaticDef(buttonHandlerTa, buttonHandlerFunction, osPriorityAboveNormal, 0, 256, buttonHandlerTaBuffer, &buttonHandlerTaControlBlock);
 	buttonHandlerTaHandle = osThreadCreate(osThread(buttonHandlerTa), NULL);
 
 	/* definition and creation of adcCalibratorTa */
-	osThreadDef(adcCalibratorTa, adcCalibratorFunction, osPriorityNormal, 0, 256);
+	osThreadStaticDef(adcCalibratorTa, adcCalibratorFunction, osPriorityNormal, 0, 256, adcCalibratorTaBuffer, &adcCalibratorTaControlBlock);
 	adcCalibratorTaHandle = osThreadCreate(osThread(adcCalibratorTa), NULL);
 
 	/* definition and creation of batteryMonitor */
-	osThreadDef(batteryMonitor, batteryMonitorFunction, osPriorityHigh, 0, 256);
+	osThreadStaticDef(batteryMonitor, batteryMonitorFunction, osPriorityHigh, 0, 256, batteryMonitorBuffer, &batteryMonitorControlBlock);
 	batteryMonitorHandle = osThreadCreate(osThread(batteryMonitor), NULL);
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
+
 	/* USER CODE END RTOS_THREADS */
 
 	/* Start scheduler */
 	osKernelStart();
-	
+
 	/* We should never get here as control is now taken by the scheduler */
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	while(1);
+	while (1);
 	/* USER CODE END WHILE */
 
 	/* USER CODE BEGIN 3 */
@@ -449,7 +469,7 @@ static void MX_TIM3_Init(void)
 		Error_Handler();
 	}
 	/* USER CODE BEGIN TIM3_Init 2 */
-
+	__HAL_TIM_URS_ENABLE(&htim3);
 	/* USER CODE END TIM3_Init 2 */
 
 }

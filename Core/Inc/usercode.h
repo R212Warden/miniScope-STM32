@@ -38,7 +38,6 @@ extern "C" {
     void adcCalibratorFunction(void const * argument);
     
     int32_t scope_recording[420];
-    uint32_t overflows;
     int32_t scope_ready;
     
     int32_t adc_voltage_raw;
