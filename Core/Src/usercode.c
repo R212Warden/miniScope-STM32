@@ -229,35 +229,13 @@ void mainTaskFunction(void const * argument)
 
 
 			if (setScopeParams) {
-				__HAL_TIM_SET_AUTORELOAD(&htim2, autoreloads[timeDiv]);
+				__HAL_TIM_SET_AUTORELOAD(&htim1, autoreloads[timeDiv]);
 
 				if (timeDiv > TIMESCALE_PRESCALER_CHANGE)
-					__HAL_TIM_SET_PRESCALER(&htim2, 31);
+					__HAL_TIM_SET_PRESCALER(&htim1, 31);
 				else
-					__HAL_TIM_SET_PRESCALER(&htim2, 0);
+					__HAL_TIM_SET_PRESCALER(&htim1, 0);
 
-				/*
-				if(timeDiv < 5){
-				    HAL_ADC_DeInit(&hadc1);
-				    HAL_Delay(10);
-				    MX_ADC1_Init(ENABLE, samplingtime[timeDiv], ADC_SOFTWARE_START);
-				    HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
-                        
-				}else{
-                    
-				    HAL_ADC_DeInit(&hadc1);
-				    HAL_Delay(10);
-				    MX_ADC1_Init(DISABLE, ADC_SAMPLETIME_7CYCLES_5, ADC_EXTERNALTRIGCONV_T2_CC2);
-				    HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
-				}
-				 */
-				/**
-				HAL_ADC_DeInit(&hadc1);
-				HAL_Delay(10);
-				MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START);
-				HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
-                    
-				 */
 				setScopeParams--;
 
 				if (setScopeParams < 0) setScopeParams = 0;
@@ -386,7 +364,8 @@ void mainTaskFunction(void const * argument)
 				//there is no break statement on purpose (for now there is...)
 				break;
 			case 2: //scope
-				MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T2_CC2, ADC_CHANNEL_9);
+				
+				MX_ADC1_myInit(DISABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T1_CC1, ADC_CHANNEL_9);
 				HAL_ADC_Start(&hadc1);
 				break;
 				/*
