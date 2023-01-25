@@ -224,7 +224,7 @@ void mainTaskFunction(void const * argument)
 		case 2: //scope
 
 			ST7735_WriteString(52, 0, "SCOPE", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-			//sprintf(buffer, "%d  ", timeDiv);
+			sprintf(buffer, "%d  ", timeDiv);
 			ST7735_WriteString(0, 0, timedivs + 5 * timeDiv, Font_11x18, ST7735_CYAN, ST7735_BLACK);
 
 
@@ -257,8 +257,9 @@ void mainTaskFunction(void const * argument)
 					//pixel = timediv_scaler[timeDiv] * (float)i;
 
 					//voltage = (float)scope_recording[(int32_t)pixel] * 0.015; 
+					
 					voltage = (float) processedGraph[i] * 0.0145;
-
+					
 					ST7735_DrawPixel(i, 79 - (int32_t) voltage, ST7735_WHITE);
 
 				}
@@ -268,6 +269,7 @@ void mainTaskFunction(void const * argument)
 			if (HAL_DMA_GetState(&hdma_adc1) == HAL_DMA_STATE_READY) {
 				HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
 			}
+			
 			break;
 		case 3: //charging
 			ST7735_WriteString(36, 0, "CHARGING", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
@@ -366,7 +368,13 @@ void mainTaskFunction(void const * argument)
 			case 2: //scope
 				
 				MX_ADC1_myInit(DISABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T1_CC1, ADC_CHANNEL_9);
+				
+				HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
+				__HAL_DMA_ENABLE_IT(&hdma_adc1, DMA_IT_TC);
+				
 				HAL_ADC_Start(&hadc1);
+				
+				
 				break;
 				/*
 				case 3: //charging
@@ -456,7 +464,7 @@ void buttonHandlerFunction(void const * argument)
 				}
 			}
 		}
-		osDelay(50);
+		osDelay(10);
 	}
 }
 
