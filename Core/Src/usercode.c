@@ -5,7 +5,7 @@
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	   http://www.apache.org/licenses/LICENSE-2.0
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,7 +32,8 @@ int32_t scope_recording[420];
 int32_t counter, scope_ready;
 
 #define TIMESCALE 18
-#define TIMESCALE_PRESCALER_CHANGE 12
+#define TIMESCALE_PRESCALER_CHANGE 11 //more than 11
+#define TIMESCALE_SAMPLING_RATE_CHANGE 7 //less than this is done using continuous ADC
 #define TIMESCALE_MIN 2
 
 const char timedivs[5 * TIMESCALE] = {
@@ -56,54 +57,48 @@ const char timedivs[5 * TIMESCALE] = {
 	'2', 's', ' ', ' ', 0
 };
 
-const float timediv_scaler[TIMESCALE] = {
-	1.0000,
-	0.5000,
-	0.5125,
-	0.4200,
-	0.6300,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1
-};
 
-const uint32_t samplingtime[5] = {
+const uint32_t samplingtime[TIMESCALE_SAMPLING_RATE_CHANGE] = {
+	0,
+	0,
+	ADC_SAMPLETIME_1CYCLE_5,
 	ADC_SAMPLETIME_7CYCLES_5,
-	ADC_SAMPLETIME_7CYCLES_5,
-	ADC_SAMPLETIME_28CYCLES_5,
-	ADC_SAMPLETIME_71CYCLES_5,
+	ADC_SAMPLETIME_13CYCLES_5,
+	ADC_SAMPLETIME_55CYCLES_5,
 	ADC_SAMPLETIME_239CYCLES_5
 };
 
+
+const float timescale_scale[TIMESCALE_SAMPLING_RATE_CHANGE] = {
+	0,
+	0,
+	0.5000,
+	0.8750,
+	1.3462,
+	1.0294,
+	0.6944
+};
+
+
 const int32_t autoreloads[TIMESCALE] = {
-	4,
-	8,
-	16,
-	40,
-	80,
-	160,
-	400,
-	800,
-	1600,
-	4000,
-	8000,
-	16000,
-	40000,
-	2500,
-	5000,
-	12500,
-	25000,
-	50000
+	7,
+	14,
+	28,
+	70,
+	280,
+	280,
+	700,
+	1400,
+	2800,
+	7000,
+	14000,
+	28000,
+	1440,
+	2800,
+	5600,
+	14000,
+	28000,
+	56000
 };
 
 void mainTaskFunction(void const * argument)
@@ -127,11 +122,11 @@ void mainTaskFunction(void const * argument)
 	int32_t setScopeParams = 1;
 	int32_t setADCchargingChannel = 1;
 	int32_t setADCvoltageProbeChannel = 0;
-	
+
 	getSupplyVoltageCounter = 0xFFFF; //trigger the calibration immediately
-	
+
 	for (;;) {
-		
+
 		compare = __HAL_TIM_GET_COMPARE(&htim3, TIM_CHANNEL_2);
 		if (compare < 100) compare = 0;
 		freq = ((56000000 / freq_div) / (float) compare);
@@ -147,8 +142,8 @@ void mainTaskFunction(void const * argument)
 				capacitance_lpf = capacitance; //antilag
 			}
 			timer_previous = compare;
-			
-			
+
+
 			if (__HAL_TIM_GET_FLAG(&htim3, TIM_FLAG_UPDATE)) { //overflow detected
 				timer_overflows++;
 				compare_lovval = 0;
@@ -201,13 +196,13 @@ void mainTaskFunction(void const * argument)
 			if ((voltage > (voltage_prev + 70)) || (voltage < (voltage_prev - 70))) {
 				voltage_lpf = voltage; //antilag
 			}
-			voltage_prev = voltage*1000;
+			voltage_prev = voltage * 1000;
 
 			voltage_lpf -= voltage_lpf / 8;
 			voltage_lpf += voltage / 8;
 
 			voltage_disp = voltage_lpf;
-			
+
 			if (voltage_disp != voltage_disp_prev) {
 
 				ST7735_FillRectangleFast(0, 30, 160, 26, ST7735_BLACK);
@@ -224,7 +219,8 @@ void mainTaskFunction(void const * argument)
 		case 2: //scope
 
 			ST7735_WriteString(52, 0, "SCOPE", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
-			sprintf(buffer, "%d  ", timeDiv);
+			//sprintf(buffer, "%d  ", (int32_t)(timescale_scale[timeDiv]*1000));
+			//ST7735_WriteString(0, 0, buffer, Font_11x18, ST7735_CYAN, ST7735_BLACK);
 			ST7735_WriteString(0, 0, timedivs + 5 * timeDiv, Font_11x18, ST7735_CYAN, ST7735_BLACK);
 
 
@@ -232,18 +228,27 @@ void mainTaskFunction(void const * argument)
 				__HAL_TIM_SET_AUTORELOAD(&htim1, autoreloads[timeDiv]);
 
 				if (timeDiv > TIMESCALE_PRESCALER_CHANGE)
-					__HAL_TIM_SET_PRESCALER(&htim1, 31);
+					__HAL_TIM_SET_PRESCALER(&htim1, 49);
 				else
 					__HAL_TIM_SET_PRESCALER(&htim1, 0);
 
+				if (timeDiv < TIMESCALE_SAMPLING_RATE_CHANGE) {
+					MX_ADC1_myInit(ENABLE, samplingtime[timeDiv], ADC_SOFTWARE_START, ADC_CHANNEL_9);
+				} else {
+					MX_ADC1_myInit(DISABLE, ADC_SAMPLETIME_239CYCLES_5, ADC_EXTERNALTRIGCONV_T1_CC1, ADC_CHANNEL_9);
+				}
+				
 				setScopeParams--;
 
 				if (setScopeParams < 0) setScopeParams = 0;
 			}
-
+			int32_t *processedGraph;
 			if (scope_ready) {
 				//int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time);
-				int32_t *processedGraph = triggerWaveform(160, 420, scope_recording, 0xFFFF, 40);
+				if (timeDiv < TIMESCALE_SAMPLING_RATE_CHANGE)
+					processedGraph = triggerWaveform(160, 420, scope_recording, 0xFFFF, 40.0*timescale_scale[timeDiv]);
+				else
+					processedGraph = triggerWaveform(160, 420, scope_recording, 0xFFFF, 40);	
 
 				ST7735_FillRectangleFast(0, 20, 160, 60, ST7735_BLACK);
 				ST7735_FillRectangle(40, 20, 1, 60, ST7735_RED);
@@ -253,15 +258,19 @@ void mainTaskFunction(void const * argument)
 
 				float pixel;
 				for (int i = 0; i < 160; i++) {
-
-					//pixel = timediv_scaler[timeDiv] * (float)i;
-
+					
+					if (timeDiv < TIMESCALE_SAMPLING_RATE_CHANGE){
+						pixel = timescale_scale[timeDiv] * (float)i;
+						if (pixel > 420) break;
+						voltage = (float) processedGraph[(int)pixel] * 0.0145;
+						
+					}else{
+						voltage = (float) processedGraph[i] * 0.0145;
+					}
+					
+					//voltage = (float) processedGraph[i] * 0.0145;
 					//voltage = (float)scope_recording[(int32_t)pixel] * 0.015; 
-					
-					voltage = (float) processedGraph[i] * 0.0145;
-					
 					ST7735_DrawPixel(i, 79 - (int32_t) voltage, ST7735_WHITE);
-
 				}
 				scope_ready = 0;
 			}
@@ -269,7 +278,7 @@ void mainTaskFunction(void const * argument)
 			if (HAL_DMA_GetState(&hdma_adc1) == HAL_DMA_STATE_READY) {
 				HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
 			}
-			
+
 			break;
 		case 3: //charging
 			ST7735_WriteString(36, 0, "CHARGING", Font_11x18, ST7735_YELLOW, ST7735_BLACK);
@@ -289,8 +298,8 @@ void mainTaskFunction(void const * argument)
 			}
 
 
-			int charge_enable_Pin = 1<<17;
-			
+			int charge_enable_Pin = 1 << 17;
+
 			if ((charging_finished == 0) && (battery_perc < 95) && !HAL_GPIO_ReadPin(GPIOA, charge_enable_Pin) && !HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
 				HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 1);
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
@@ -299,7 +308,7 @@ void mainTaskFunction(void const * argument)
 				charging_finished = 1;
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
 				ST7735_WriteString(30, 60, "Finished!", Font_11x18, ST7735_GREEN, ST7735_BLACK);
-			}else if (HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
+			} else if (HAL_GPIO_ReadPin(GPIOA, in_plugged_Pin)) {
 				HAL_GPIO_WritePin(GPIOA, charge_enable_Pin, 0);
 				charging_finished = 0;
 				ST7735_FillRectangleFast(0, 60, 160, 18, ST7735_BLACK);
@@ -344,7 +353,7 @@ void mainTaskFunction(void const * argument)
 
 			//HAL_ADC_Stop_DMA(&hadc1);
 			voltage_disp_prev = 0xffff;
-			MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
+			MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_239CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);
 			HAL_ADC_Start(&hadc1);
 
 		}
@@ -357,32 +366,33 @@ void mainTaskFunction(void const * argument)
 			switch (mode_selector) {
 			case 0: //capacitance
 				capacitance_disp_prev = 0xffff;
+				break;
 			case 1: //voltage
 				voltage_prev = 0xffff;
 				if (hdma_adc1.State != 0) {
 					HAL_ADC_Stop_DMA(&hadc1);
 				}
-				MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_71CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
+				MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_239CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_9);
 				//there is no break statement on purpose (for now there is...)
 				break;
 			case 2: //scope
-				
-				MX_ADC1_myInit(DISABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_EXTERNALTRIGCONV_T1_CC1, ADC_CHANNEL_9);
-				
+
+				MX_ADC1_myInit(DISABLE, ADC_SAMPLETIME_239CYCLES_5, ADC_EXTERNALTRIGCONV_T1_CC1, ADC_CHANNEL_9);
+
 				HAL_ADC_Start_DMA(&hadc1, scope_recording, 420);
 				__HAL_DMA_ENABLE_IT(&hdma_adc1, DMA_IT_TC);
-				
+
 				HAL_ADC_Start(&hadc1);
-				
-				
+
+
 				break;
 				/*
 				case 3: //charging
-				    if(hdma_adc1.State != 0){
+					if(hdma_adc1.State != 0){
 					HAL_ADC_Stop_DMA(&hadc1);
-				    }
-				    MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);  
-				    HAL_ADC_Start(&hadc1);
+					}
+					MX_ADC1_Init(ENABLE, ADC_SAMPLETIME_1CYCLE_5, ADC_SOFTWARE_START, ADC_CHANNEL_6);  
+					HAL_ADC_Start(&hadc1);
 				 */
 			}
 			setADCvoltageProbeChannel = 0;
@@ -406,7 +416,6 @@ void mainTaskFunction(void const * argument)
 	/* USER CODE END 5 */
 }
 
-
 void adcCalibratorFunction(void const * argument)
 {
 	while (1) {
@@ -420,19 +429,19 @@ void adcCalibratorFunction(void const * argument)
 		MX_ADC1_myInit(ENABLE, ADC_SAMPLETIME_41CYCLES_5, ADC_SOFTWARE_START, ADC_CHANNEL_VREFINT);
 		HAL_ADC_Start(&hadc1);
 
-		for(int i = 0; i < 192; i++){
-			if(i>63)
+		for (int i = 0; i < 192; i++) {
+			if (i > 63)
 				sum += HAL_ADC_GetValue(&hadc1);
 			else
 				sum = 0;
 		}
 
 		//adc_voltage_raw = sum/8;
-		adc_voltage = (4096*1.2*128.0)/(float)sum;
+		adc_voltage = (4096 * 1.2 * 128.0) / (float) sum;
 
 		MX_ADC1_myInit(continuousmode, samplingtime, trigger, channel);
 		HAL_ADC_Start(&hadc1);
-		
+
 		osDelay(1000);
 	}
 }
@@ -471,11 +480,10 @@ void buttonHandlerFunction(void const * argument)
 void batteryMonitorFunction(void const * argument)
 {
 	while (1) {
-		
+
 		osDelay(100);
 	}
 }
-
 
 int user_strlen(char *str)
 {
@@ -488,7 +496,6 @@ void btn_power_handler(void)
 {
 	return;
 }
-
 
 int32_t *triggerWaveform(int len, int maxlen, int *graph, int level, int time)
 { //len has to be greater than time
